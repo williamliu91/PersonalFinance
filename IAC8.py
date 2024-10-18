@@ -102,6 +102,74 @@ def generate_signals(data, rsi_buy_level, rsi_sell_level):
     # Combined Signal
     data['Combined_Signal'] = data['RSI_Signal'] + data['BB_Signal']
 
+# Function to calculate Stochastic Oscillator
+def calculate_stochastic(data, k_window=14, d_window=3):
+    """
+    Calculate Stochastic Oscillator %K and %D.
+
+    :param data: DataFrame containing stock data.
+    :param k_window: Window for %K calculation.
+    :param d_window: Window for %D calculation.
+    :return: Tuple of %K and %D values.
+    """
+    min_low = data['Low'].rolling(window=k_window).min()
+    max_high = data['High'].rolling(window=k_window).max()
+    
+    # Calculate %K
+    data['Stochastic_K'] = 100 * ((data['Close'] - min_low) / (max_high - min_low))
+    
+    # Calculate %D
+    data['Stochastic_D'] = data['Stochastic_K'].rolling(window=d_window).mean()
+    
+    return data['Stochastic_K'], data['Stochastic_D']
+
+# Function to calculate MACD
+def calculate_macd(data, short_window=12, long_window=26, signal_window=9):
+    """
+    Calculate the MACD and signal line.
+
+    :param data: DataFrame containing stock data.
+    :param short_window: Short window for MACD calculation.
+    :param long_window: Long window for MACD calculation.
+    :param signal_window: Signal window for MACD calculation.
+    :return: Tuple of MACD, Signal line, and Histogram values.
+    """
+    # Calculate the short and long EMA
+    short_ema = data['Close'].ewm(span=short_window, adjust=False).mean()
+    long_ema = data['Close'].ewm(span=long_window, adjust=False).mean()
+
+    # Calculate MACD
+    data['MACD'] = short_ema - long_ema
+    data['Signal'] = data['MACD'].ewm(span=signal_window, adjust=False).mean()
+    data['Histogram'] = data['MACD'] - data['Signal']
+
+    return data['MACD'], data['Signal'], data['Histogram']
+
+# Function to calculate MFI
+def calculate_mfi(data, window=14):
+    """
+    Calculate the Money Flow Index (MFI).
+
+    :param data: DataFrame containing stock data.
+    :param window: Lookback period for MFI calculation.
+    :return: MFI values.
+    """
+    # Calculate typical price
+    typical_price = (data['High'] + data['Low'] + data['Close']) / 3
+
+    # Calculate money flow
+    data['Money_Flow'] = typical_price * data['Volume']
+
+    # Calculate positive and negative money flow
+    data['Positive_Flow'] = np.where(typical_price.diff(1) > 0, data['Money_Flow'], 0)
+    data['Negative_Flow'] = np.where(typical_price.diff(1) < 0, data['Money_Flow'], 0)
+
+    # Calculate MFI
+    positive_flow_sum = data['Positive_Flow'].rolling(window=window).sum()
+    negative_flow_sum = data['Negative_Flow'].rolling(window=window).sum()
+    mfi = 100 - (100 / (1 + (positive_flow_sum / negative_flow_sum)))
+    
+    return mfi
 
 
 # Function to create and update the chart
